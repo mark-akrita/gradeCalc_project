@@ -1,43 +1,56 @@
 import json
 import sys
 
-print("BARLUS")
+workFile = "students.json"
 
-with open("students.json") as data_file:
+try:
+    with open(workFile) as data_file:
         data = json.load(data_file)
+    assert len(data) != 0
+except AssertionError:
+    data = {"students":  []}
+except json.decoder.JSONDecodeError:
+    data = {"students": []}
 with open("gc_setup.json") as data_file:
     gc_setup = json.load(data_file)
+
+def dataSaver(data):
+    try:
+        file = open(workFile, "w")
+        file.write(json.dumps(data))
+    finally:
+        file.close()
 
 def askStudentID():
     students = data["students"]
     studentID = input("Enter your ID(by name_surname format): ")
-    for ind in range(len(students)):
-        if students[ind]["id"] == studentID:
-            student = data["students"][ind]["id"]
+    for i in range(len(students)):
+        if students[i]["id"] == studentID:
+            student = data["students"][i]["id"]
             break
     else:
-        student = {"id": studentID, "courses": [{}]}
-        data["students"].append(student)
-        file = open("students.json", "w")
-        file.write(json.dumps(data))
-        file.close()
+        student = studentID
+        new_student = {"id": studentID, "courses": []}
+        data["students"].append(new_student)
+        dataSaver(data)
     return student
 
 def addCourses(student):
     students = data["students"]
-    for ind in range(len(students)):
-         if students[ind]["id"] == student:
-             courses = students[ind]["courses"]
-    print("Your courses..")
+    for i in range(len(students)):
+         if students[i]["id"] == student:
+             courses = students[i]["courses"]
     curr_courses = []
-    for ind in range(len(courses)):
-        try:
-            curr_courses.append(courses[ind]["course"])
-            print(courses[ind]["course"])
-            #for key in courses[ind]["grades"]:
-                #print(key + ": " + courses[ind]["grades"][key])
-        except KeyError:
-            print("You don't have courses yet")
+    try:
+        print("Your courses..")
+        for i in range(len(courses)):
+            curr_courses.append(courses[i]["course"])
+            print(courses[i]["course"])
+        assert len(curr_courses) != 0
+    except AssertionError:
+        print("You don't have courses yet")
+    except (UnboundLocalError, KeyError):
+        print("You don't have courses yet")
     while True:
         print("If you want to know grades of a course, type course name")
         print("If You want to add course type 'add'")
@@ -48,27 +61,28 @@ def addCourses(student):
             for i in range(len(courses)):
                 if courses[i]["course"] == step:
                     for key in courses[i]["grades"]:
-                        print(key + ": " + courses[ind]["grades"][key])
+                        print(key + ": " + courses[i]["grades"][key])
         elif step == 'add':
-            add = input("Add course: ")
-            courses.append({"course": add, "grades": {}})
-            file = open("students.json", "w")
-            file.write(json.dumps(data))
-            file.close()
+            add = input("Add course code: ")
+            #courses.append({"course": add, "grades": {}})
+            for i in range(len(data["students"])):
+                if data["students"][i]["id"] == student:
+                    data["students"][i]["courses"].append({"course": add, "grades": {}})
+            dataSaver(data)
             course = add
             break
         elif step == 'update':
             update = input("Which course: ")
-            for ind in range(len(courses)):
-                if update == courses[ind]["course"]:
-                    course = courses[ind]["course"]
+            for i in range(len(courses)):
+                if update == courses[i]["course"]:
+                    course = courses[i]["course"]
             break
         elif step == '':
             calculateGPA(student)
             sys.exit()
             break
         else:
-            print("Invalid input, again")
+            print("Invalid input, try again")
     return course
 
 def loadSetupData():
@@ -77,11 +91,11 @@ def loadSetupData():
 
 def askForAssignmentMarks(grades, student, course):
     current_grades = {}
-    for ind in range(len(data["students"])):
-        if data["students"][ind]["id"] == student:
-            for jnd in range(len(data["students"][ind]["courses"])):
-                if data["students"][ind]["courses"][jnd]["course"] == course:
-                    current_grades = data["students"][ind]["courses"][jnd]["grades"]
+    for i in range(len(data["students"])):
+        if data["students"][i]["id"] == student:
+            for j in range(len(data["students"][i]["courses"])):
+                if data["students"][i]["courses"][j]["course"] == course:
+                    current_grades = data["students"][i]["courses"][j]["grades"]
     for key in grades:
         question = ("What is your Current Grade for " + key + ". Please insert -1 if you don't have a grade yet.")
         print("Weight percent in final grade for", key, "is", str(grades[key]) + '%.')
@@ -96,6 +110,11 @@ def askForAssignmentMarks(grades, student, course):
                     step = input("Enter number or just 'Enter'")
                 if step == '':
                     current_grades[key] = current_grades[key]
+                elif float(step) > 100:
+                    while int(step) > 100:
+                        step = input("Number between [0:100]")
+                        if step == '':
+                            break
                 else:
                     current_grades[key] = step
             else:
@@ -106,16 +125,13 @@ def askForAssignmentMarks(grades, student, course):
         except json.decoder.JSONDecodeError:
             current_grades = {"grades": {}}
             current_grades[key] = input(question)
-    data["students"][ind]["courses"][jnd]["grades"] = current_grades
     return current_grades
 
 def saveGrades(current_grades):
     print ("Your grades...") #json.dumps(current_grades))
     for key in current_grades:
         print(key + ':', current_grades[key])
-    file = open("students.json", "w")
-    file.write(json.dumps(data))
-    file.close()
+    dataSaver(data)
 
 def calculateGrades(grades, current_grades):
     curr_grade = 0
@@ -127,9 +143,9 @@ def calculateGrades(grades, current_grades):
 
 def stringConverter(curr_grade):
     marks = gc_setup["course_setup"]["conv_matrix"]
-    for ind in range(len(marks)):
-        if curr_grade >= marks[ind]["min"] and curr_grade <= marks[ind]["max"]:
-            mark = marks[ind]["mark"]
+    for i in range(len(marks)):
+        if curr_grade >= marks[i]["min"] and curr_grade <= marks[i]["max"]:
+            mark = marks[i]["mark"]
     return mark
 
 def printCurrentGrade(mark, curr_grade):
@@ -145,9 +161,7 @@ def saveLetterMark(mark, curr_grade, student, course):
                 if data["students"][i]["courses"][j]["course"] == course:
                     data["students"][i]["courses"][j]["final_grade"] = curr_grade
                     data["students"][i]["courses"][j]["mark"] = mark
-    file = open("students.json", "w")
-    file.write(json.dumps(data))
-    file.close()
+    dataSaver(data)
 
 def calculateGPA(student):
     marks = []
